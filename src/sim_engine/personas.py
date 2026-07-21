@@ -56,7 +56,7 @@ FEATURE_CATEGORIES = ["quality", "price", "convenience", "innovation", "support"
 
 class PersonaGenerator:
     """Generate synthetic personas."""
-    
+
     def __init__(self, seed: int = 42):
         """Initialize generator.
         
@@ -64,7 +64,7 @@ class PersonaGenerator:
             seed: Random seed for reproducibility
         """
         self.rng = random.Random(seed)
-    
+
     def generate_consumer(self, override: Optional[dict[str, Any]] = None) -> ConsumerPersona:
         """Generate a consumer persona.
         
@@ -75,7 +75,7 @@ class PersonaGenerator:
             ConsumerPersona instance
         """
         segment = self.rng.choice(SEGMENTS)
-        
+
         # Price sensitivity inversely related to segment
         price_sensitivity_map = {
             "budget": 0.9,
@@ -86,14 +86,14 @@ class PersonaGenerator:
         }
         base_sensitivity = price_sensitivity_map.get(segment, 0.5)
         price_sensitivity = min(1.0, max(0.0, base_sensitivity + self.rng.uniform(-0.1, 0.1)))
-        
+
         # Brand loyalty varies by segment
         brand_loyalty = 0.3 + self.rng.uniform(0, 0.5) if segment in ["premium", "luxury"] else 0.2 + self.rng.uniform(0, 0.3)
-        
+
         # Churn risk based on price sensitivity and loyalty
         churn_risk = (price_sensitivity * 0.4 + (1 - brand_loyalty) * 0.6) * self.rng.uniform(0.8, 1.2)
         churn_risk = min(1.0, max(0.0, churn_risk))
-        
+
         persona = ConsumerPersona(
             persona_id=f"cons_{uuid4().hex[:8]}",
             segment=segment,
@@ -111,12 +111,12 @@ class PersonaGenerator:
             tech_adoption=self.rng.choice(TECH_ADOPTIONS),
             memory_summary="New consumer persona initialized.",
         )
-        
+
         if override:
             return type("ConsumerPersona", (ConsumerPersona,), {})(**{**persona.model_dump(), **override})
-        
+
         return persona
-    
+
     def generate_competitor(self, override: Optional[dict[str, Any]] = None) -> CompetitorPersona:
         """Generate a competitor persona.
         
@@ -127,7 +127,7 @@ class PersonaGenerator:
             CompetitorPersona instance
         """
         market_position = self.rng.choice(MARKET_POSITIONS)
-        
+
         # Innovation rate based on position
         innovation_map = {
             "leader": 0.7,
@@ -136,11 +136,11 @@ class PersonaGenerator:
             "nicher": 0.6,
         }
         innovation_rate = min(1.0, max(0.0, innovation_map.get(market_position, 0.5) + self.rng.uniform(-0.1, 0.1)))
-        
+
         # Pricing aggressiveness
         pricing_agg = 0.5 + self.rng.uniform(-0.3, 0.3) if market_position == "challenger" else 0.3 + self.rng.uniform(-0.2, 0.2)
         pricing_aggressiveness = min(1.0, max(0.0, pricing_agg))
-        
+
         persona = CompetitorPersona(
             persona_id=f"comp_{uuid4().hex[:8]}",
             segment=self.rng.choice(SEGMENTS),
@@ -159,12 +159,12 @@ class PersonaGenerator:
             product_categories=self.rng.sample(["electronics", "software", "services", "hardware"], k=self.rng.randint(1, 3)),
             memory_summary="New competitor persona initialized.",
         )
-        
+
         if override:
             return type("CompetitorPersona", (CompetitorPersona,), {})(**{**persona.model_dump(), **override})
-        
+
         return persona
-    
+
     def generate_batch(
         self,
         count: int,
@@ -182,12 +182,12 @@ class PersonaGenerator:
         personas = []
         consumer_count = int(count * consumer_ratio)
         competitor_count = count - consumer_count
-        
+
         for _ in range(consumer_count):
             personas.append(self.generate_consumer())
-        
+
         for _ in range(competitor_count):
             personas.append(self.generate_competitor())
-        
+
         self.rng.shuffle(personas)
         return personas

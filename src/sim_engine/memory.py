@@ -1,10 +1,9 @@
 """Vector memory module using Qdrant for persona state persistence."""
 
 import hashlib
-import json
 from typing import Any, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class MemoryRecord(BaseModel):
@@ -24,7 +23,7 @@ class QdrantMemory:
     
     Supports both local (embedded) and server modes.
     """
-    
+
     def __init__(
         self,
         mode: str = "local",
@@ -49,26 +48,26 @@ class QdrantMemory:
         self.storage_path = storage_path
         self._client = None
         self._initialized = False
-    
+
     def _get_client(self):
         """Get or create Qdrant client."""
         if self._client is not None:
             return self._client
-        
+
         try:
             from qdrant_client import QdrantClient
-            
+
             if self.mode == "local":
                 self._client = QdrantClient(path=self.storage_path)
             else:
                 self._client = QdrantClient(host=self.host, port=self.port)
-            
+
             return self._client
-        
+
         except ImportError:
             # Fallback to mock mode if qdrant-client not installed
             return None
-    
+
     def initialize(self) -> bool:
         """Initialize Qdrant collection.
         
@@ -77,28 +76,28 @@ class QdrantMemory:
         """
         if self._initialized:
             return True
-        
+
         client = self._get_client()
         if client is None:
             # Mock mode - no actual storage
             self._initialized = True
             return True
-        
+
         try:
             from qdrant_client.http import models
-            
+
             # Check if collection exists
             collections = client.get_collections().collections
             if any(c.name == self.collection_name for c in collections):
                 self._initialized = True
                 return True
-            
+
             # Create collection with payload indexes
             client.create_collection(
                 collection_name=self.collection_name,
                 vectors_config=models.VectorParams(size=384, distance=models.Distance.COSINE),
             )
-            
+
             # Create payload indexes for filtering
             client.create_payload_index(
                 collection_name=self.collection_name,
@@ -125,15 +124,15 @@ class QdrantMemory:
                 field_name="segment",
                 field_schema=models.PayloadSchemaType.KEYWORD,
             )
-            
+
             self._initialized = True
             return True
-        
-        except Exception as e:
+
+        except Exception:
             # Fall back to mock mode
             self._initialized = True
             return True
-    
+
     def _generate_embedding(self, text: str) -> list[float]:
         """Generate simple embedding for text.
         
@@ -144,18 +143,18 @@ class QdrantMemory:
         hash_input = text.encode()
         embedding = []
         for i in range(384):
-            h = hashlib.md5(hash_input + bytes([i])).hexdigest()
+            h = hashlib.md5(hash_input + str(i).encode()).hexdigest()
             # Convert hex to float in [-1, 1]
             val = (int(h[:8], 16) / 0xFFFFFFFF) * 2 - 1
             embedding.append(val)
-        
+
         # Normalize
         norm = sum(x*x for x in embedding) ** 0.5
         if norm > 0:
             embedding = [x/norm for x in embedding]
-        
+
         return embedding
-    
+
     def store(
         self,
         persona_id: str,
@@ -179,18 +178,18 @@ class QdrantMemory:
             Memory ID
         """
         import uuid
-        
+
         memory_id = f"mem_{uuid.uuid4().hex[:12]}"
         embedding = self._generate_embedding(content)
-        
+
         client = self._get_client()
         if client is None:
             # Mock mode - just return ID
             return memory_id
-        
+
         try:
             from qdrant_client.http import models
-            
+
             payload = {
                 "persona_id": persona_id,
                 "memory_type": memory_type,
@@ -199,7 +198,7 @@ class QdrantMemory:
                 "content": content,
                 **(metadata or {}),
             }
-            
+
             client.upsert(
                 collection_name=self.collection_name,
                 points=[
@@ -210,12 +209,12 @@ class QdrantMemory:
                     )
                 ],
             )
-        
+
         except Exception:
             pass
-        
+
         return memory_id
-    
+
     def retrieve(
         self,
         persona_id: str,
@@ -240,10 +239,10 @@ class QdrantMemory:
         if client is None:
             # Mock mode - return empty
             return []
-        
+
         try:
             from qdrant_client.http import models
-            
+
             # Build filter
             conditions = [
                 models.FieldCondition(
@@ -251,7 +250,7 @@ class QdrantMemory:
                     match=models.MatchValue(value=persona_id),
                 )
             ]
-            
+
             if memory_type:
                 conditions.append(
                     models.FieldCondition(
@@ -259,7 +258,7 @@ class QdrantMemory:
                         match=models.MatchValue(value=memory_type),
                     )
                 )
-            
+
             if run_id:
                 conditions.append(
                     models.FieldCondition(
@@ -267,7 +266,7 @@ class QdrantMemory:
                         match=models.MatchValue(value=run_id),
                     )
                 )
-            
+
             if round_num is not None:
                 conditions.append(
                     models.FieldCondition(
@@ -275,19 +274,19 @@ class QdrantMemory:
                         match=models.MatchValue(value=round_num),
                     )
                 )
-            
+
             search_filter = models.Filter(must=conditions)
-            
+
             # Search with dummy query embedding
             query_embedding = self._generate_embedding(persona_id)
-            
+
             results = client.search(
                 collection_name=self.collection_name,
                 query_vector=query_embedding,
                 limit=top_k,
                 query_filter=search_filter,
             )
-            
+
             records = []
             for result in results:
                 payload = result.payload or {}
@@ -301,12 +300,12 @@ class QdrantMemory:
                     embedding=result.vector or [],
                     metadata={k: v for k, v in payload.items() if k not in ["persona_id", "memory_type", "run_id", "round", "content"]},
                 ))
-            
+
             return records
-        
+
         except Exception:
             return []
-    
+
     def clear(self) -> None:
         """Clear all memories."""
         client = self._get_client()

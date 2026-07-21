@@ -59,4 +59,13 @@ wheels/
 # OS
 .DS_Store
 Thumbs.db
+
+# Qdrant
+.qdrant_storage/
+
+# Simulation runs
+data/sim/runs/
+
+# Generated reports
+reports/
 ```

@@ -1,9 +1,9 @@
 """Configuration management for the simulation engine."""
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 from dotenv import load_dotenv
@@ -56,7 +56,7 @@ HIGH_PROFILE = ResourceProfile(
 @dataclass
 class Config:
     """Main configuration class."""
-    
+
     resource_profile: str = "low"
     llm_provider: str = "mock"
     persona_count: int = 20
@@ -77,13 +77,13 @@ class Config:
     cache_ttl_hours: int = 24
     output_dir: str = "data/sim/runs"
     log_level: str = "INFO"
-    
+
     @classmethod
     def from_yaml(cls, path: str) -> "Config":
         """Load configuration from YAML file."""
         with open(path, "r") as f:
             data = yaml.safe_load(f)
-        
+
         # Apply resource profile defaults if specified
         if "resource_profile" in data:
             profile = data["resource_profile"]
@@ -95,7 +95,7 @@ class Config:
                 defaults = HIGH_PROFILE
             else:
                 defaults = LOW_PROFILE
-            
+
             # Merge profile defaults with explicit config
             config_dict = {
                 "persona_count": defaults.persona_count,
@@ -108,14 +108,14 @@ class Config:
             }
             config_dict.update(data)
             return cls(**config_dict)
-        
+
         return cls(**data) if data else cls()
-    
+
     @classmethod
     def from_env(cls) -> "Config":
         """Load configuration from environment variables."""
         load_dotenv()
-        
+
         profile = os.getenv("RESOURCE_PROFILE", "low")
         if profile == "low":
             defaults = LOW_PROFILE
@@ -125,7 +125,7 @@ class Config:
             defaults = HIGH_PROFILE
         else:
             defaults = LOW_PROFILE
-        
+
         return cls(
             resource_profile=os.getenv("RESOURCE_PROFILE", "low"),
             llm_provider=os.getenv("LLM_PROVIDER", "mock"),
@@ -140,7 +140,7 @@ class Config:
             qdrant_port=int(os.getenv("QDRANT_PORT", "6333")),
             random_seed=int(os.getenv("RANDOM_SEED", "42")),
         )
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert configuration to dictionary."""
         return {
@@ -165,11 +165,11 @@ class Config:
             "output_dir": self.output_dir,
             "log_level": self.log_level,
         }
-    
+
     def get_output_path(self, run_id: str) -> Path:
         """Get output directory path for a run."""
         return Path(self.output_dir) / run_id
-    
+
     def ensure_dirs(self) -> None:
         """Ensure all required directories exist."""
         Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
