@@ -23,7 +23,7 @@ class LLMClient:
     - ollama: Local Ollama server
     - openai: OpenAI API
     """
-    
+
     def __init__(
         self,
         provider: str = "mock",
@@ -50,7 +50,7 @@ class LLMClient:
         self.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
         self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         self._client = None
-    
+
     def _get_client(self):
         """Get provider-specific client."""
         if self.provider == "openai" and self._client is None:
@@ -60,11 +60,11 @@ class LLMClient:
             except ImportError:
                 pass
         return self._client
-    
+
     def _make_cache_key(self, prompt: str, system: str) -> dict[str, Any]:
         """Create cache key data."""
         return {"prompt": prompt, "system": system, "max_tokens": self.max_tokens}
-    
+
     def generate(
         self,
         prompt: str,
@@ -91,7 +91,7 @@ class LLMClient:
                     provider="cache",
                     cached=True,
                 )
-        
+
         # Generate based on provider
         if self.provider == "mock":
             response = self._mock_generate(prompt, system)
@@ -101,16 +101,16 @@ class LLMClient:
             response = self._openai_generate(prompt, system)
         else:
             response = self._mock_generate(prompt, system)
-        
+
         # Cache response
         if use_cache and self.cache:
             self.cache.set("llm", self._make_cache_key(prompt, system), {
                 "content": response.content,
                 "tokens_used": response.tokens_used,
             })
-        
+
         return response
-    
+
     def _mock_generate(self, prompt: str, system: str) -> LLMResponse:
         """Generate mock response for testing."""
         # Template-based deterministic responses
@@ -143,17 +143,17 @@ class LLMClient:
                 "message": "Processed successfully",
             }, indent=2)
             tokens = 15
-        
+
         return LLMResponse(
             content=content,
             tokens_used=tokens,
             provider="mock",
         )
-    
+
     def _ollama_generate(self, prompt: str, system: str) -> LLMResponse:
         """Generate response using Ollama."""
         import httpx
-        
+
         try:
             response = httpx.post(
                 f"{self.base_url}/api/generate",
@@ -171,23 +171,23 @@ class LLMClient:
             )
             response.raise_for_status()
             data = response.json()
-            
+
             return LLMResponse(
                 content=data.get("response", ""),
                 tokens_used=data.get("eval_count", 0),
                 provider="ollama",
             )
-        
-        except Exception as e:
+
+        except Exception:
             # Fall back to mock on error
             return self._mock_generate(prompt, system)
-    
+
     def _openai_generate(self, prompt: str, system: str) -> LLMResponse:
         """Generate response using OpenAI."""
         client = self._get_client()
         if client is None:
             return self._mock_generate(prompt, system)
-        
+
         try:
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
@@ -198,16 +198,16 @@ class LLMClient:
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
             )
-            
+
             return LLMResponse(
                 content=response.choices[0].message.content or "",
                 tokens_used=response.usage.total_tokens if response.usage else 0,
                 provider="openai",
             )
-        
+
         except Exception:
             return self._mock_generate(prompt, system)
-    
+
     def parse_json(self, response: LLMResponse) -> dict[str, Any]:
         """Parse JSON from LLM response.
         

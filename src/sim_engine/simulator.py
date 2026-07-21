@@ -1,7 +1,6 @@
 """Simulation engine for running multi-round market simulations."""
 
 import json
-import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -11,7 +10,7 @@ import pandas as pd
 
 class TransactionEvent:
     """Transaction event model."""
-    
+
     def __init__(
         self,
         transaction_id: str,
@@ -34,7 +33,7 @@ class TransactionEvent:
         self.reason = reason
         self.metadata = metadata or {}
         self.timestamp = datetime.now().isoformat()
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "transaction_id": self.transaction_id,
@@ -55,7 +54,7 @@ class Simulator:
     
     Runs multi-round simulations with personas, shocks, and agent decisions.
     """
-    
+
     def __init__(
         self,
         config: Any,
@@ -82,13 +81,13 @@ class Simulator:
         self.metrics: list[dict[str, Any]] = []
         self.token_usage: list[dict[str, Any]] = []
         self.run_id: str = ""
-    
+
     def _generate_run_id(self) -> str:
         """Generate unique run ID."""
         import uuid
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"run_{timestamp}_{uuid.uuid4().hex[:6]}"
-    
+
     def _compute_utility(
         self,
         persona: Any,
@@ -96,21 +95,21 @@ class Simulator:
     ) -> float:
         """Compute utility score for persona given scenario."""
         base_utility = 0.5
-        
+
         # Adjust based on price sensitivity and scenario price change
         if "price_change" in scenario:
             price_impact = scenario["price_change"] * persona.price_sensitivity * 0.3
             base_utility -= price_impact
-        
+
         # Adjust based on brand loyalty
         base_utility += persona.brand_loyalty * 0.2
-        
+
         # Random variation
         import random
         base_utility += random.uniform(-0.1, 0.1)
-        
+
         return max(0.0, min(1.0, base_utility))
-    
+
     def _process_consumer_round(
         self,
         persona: Any,
@@ -119,7 +118,7 @@ class Simulator:
     ) -> TransactionEvent:
         """Process consumer decision for a round."""
         import uuid
-        
+
         # Retrieve memories
         memories = []
         if self.memory:
@@ -127,7 +126,7 @@ class Simulator:
                 persona_id=persona.persona_id,
                 top_k=self.config.memory_top_k,
             )
-        
+
         # Get decision from orchestrator or compute directly
         if self.orchestrator:
             decision = self.orchestrator.process_consumer_decision(
@@ -148,14 +147,14 @@ class Simulator:
                 action = "switch"
             else:
                 action = "churn"
-            
+
             decision = {
                 "action": action,
                 "confidence": round(utility, 2),
                 "reason": f"Utility {utility:.2f}",
                 "utility_score": round(utility, 2),
             }
-        
+
         # Create transaction event
         event = TransactionEvent(
             transaction_id=f"txn_{uuid.uuid4().hex[:8]}",
@@ -168,7 +167,7 @@ class Simulator:
             reason=decision.get("reason", ""),
             metadata={"segment": persona.segment},
         )
-        
+
         # Store memory
         if self.memory:
             self.memory.store(
@@ -179,7 +178,7 @@ class Simulator:
                 round_num=round_num,
                 metadata={"action": event.action},
             )
-        
+
         # Track token usage if LLM was used
         if self.llm and hasattr(self.llm, 'last_tokens'):
             self.token_usage.append({
@@ -189,9 +188,9 @@ class Simulator:
                 "tokens": self.llm.last_tokens,
                 "provider": self.llm.provider,
             })
-        
+
         return event
-    
+
     def _process_competitor_round(
         self,
         persona: Any,
@@ -200,7 +199,7 @@ class Simulator:
     ) -> TransactionEvent:
         """Process competitor decision for a round."""
         import uuid
-        
+
         if self.orchestrator:
             decision = self.orchestrator.process_competitor_decision(
                 persona=persona,
@@ -218,14 +217,14 @@ class Simulator:
                 action = "marketing_pivot"
             else:
                 action = "no_action"
-            
+
             decision = {
                 "action": action,
                 "confidence": round(0.5 + persona.innovation_rate * 0.3, 2),
                 "reason": f"Strategy: {persona.market_position}",
                 "impact_estimate": round(persona.pricing_aggressiveness * 0.5, 2),
             }
-        
+
         event = TransactionEvent(
             transaction_id=f"txn_{uuid.uuid4().hex[:8]}",
             persona_id=persona.persona_id,
@@ -240,9 +239,9 @@ class Simulator:
                 "market_position": persona.market_position,
             },
         )
-        
+
         return event
-    
+
     def run(
         self,
         scenarios: Optional[list[dict[str, Any]]] = None,
@@ -258,61 +257,61 @@ class Simulator:
         self.run_id = self._generate_run_id()
         output_path = Path(self.config.output_dir) / self.run_id
         output_path.mkdir(parents=True, exist_ok=True)
-        
+
         # Initialize memory
         if self.memory:
             self.memory.initialize()
-        
+
         # Default scenarios
         if scenarios is None:
             scenarios = [
                 {"type": "baseline", "price_change": 0.0},
             ] * self.config.sim_rounds
-        
+
         # Ensure enough scenarios
         while len(scenarios) < self.config.sim_rounds:
             scenarios.append({"type": "baseline", "price_change": 0.0})
-        
+
         print(f"[SIM] Starting run {self.run_id}")
         print(f"[SIM] Personas: {len(self.personas)}, Rounds: {self.config.sim_rounds}")
-        
+
         # Run rounds
         for round_num in range(1, self.config.sim_rounds + 1):
             scenario = scenarios[round_num - 1] if round_num <= len(scenarios) else {"type": "baseline"}
             print(f"[SIM] Round {round_num}/{self.config.sim_rounds}: {scenario.get('type', 'baseline')}")
-            
+
             round_transactions = []
-            
+
             # Process personas in batches
             for i in range(0, len(self.personas), self.config.batch_size):
                 batch = self.personas[i:i + self.config.batch_size]
-                
+
                 for persona in batch:
                     if persona.persona_type == "consumer":
                         event = self._process_consumer_round(persona, scenario, round_num)
                     else:
                         market_state = {"round": round_num, "scenarios": scenarios[:round_num]}
                         event = self._process_competitor_round(persona, market_state, round_num)
-                    
+
                     round_transactions.append(event)
                     self.transactions.append(event)
-            
+
             # Compute round metrics
             round_metrics = self._compute_round_metrics(round_transactions, round_num)
             self.metrics.append(round_metrics)
-        
+
         # Write outputs
         self._write_outputs(output_path)
-        
+
         print(f"[SIM] Complete. Outputs in {output_path}")
-        
+
         return {
             "run_id": self.run_id,
             "output_path": str(output_path),
             "transactions": len(self.transactions),
             "rounds": self.config.sim_rounds,
         }
-    
+
     def _compute_round_metrics(
         self,
         transactions: list[TransactionEvent],
@@ -321,14 +320,14 @@ class Simulator:
         """Compute metrics for a round."""
         consumer_txns = [t for t in transactions if t.persona_type == "consumer"]
         competitor_txns = [t for t in transactions if t.persona_type == "competitor"]
-        
+
         # Action counts
         actions = {}
         for t in consumer_txns:
             actions[t.action] = actions.get(t.action, 0) + 1
-        
+
         total = len(consumer_txns) if consumer_txns else 1
-        
+
         return {
             "run_id": self.run_id,
             "round": round_num,
@@ -344,7 +343,7 @@ class Simulator:
             "avg_utility": round(sum(t.utility_score for t in consumer_txns) / total, 3) if consumer_txns else 0,
             "avg_confidence": round(sum(t.confidence for t in consumer_txns) / total, 3) if consumer_txns else 0,
         }
-    
+
     def _write_outputs(self, output_path: Path) -> None:
         """Write simulation outputs."""
         # Transactions JSONL
@@ -352,12 +351,12 @@ class Simulator:
         with open(txn_path, "w") as f:
             for txn in self.transactions:
                 f.write(json.dumps(txn.to_dict()) + "\n")
-        
+
         # Metrics CSV
         metrics_df = pd.DataFrame(self.metrics)
         metrics_path = output_path / "metrics.csv"
         metrics_df.to_csv(metrics_path, index=False)
-        
+
         # Token ledger CSV
         if self.token_usage:
             token_df = pd.DataFrame(self.token_usage)
@@ -369,7 +368,7 @@ class Simulator:
             pd.DataFrame(columns=["run_id", "round", "persona_id", "tokens", "provider"]).to_csv(
                 token_path, index=False
             )
-        
+
         # Config snapshot
         config_path = output_path / "config.json"
         with open(config_path, "w") as f:

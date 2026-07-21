@@ -1,9 +1,7 @@
 """Data ingestion module for market events, products, and competitors."""
 
-import csv
 import json
-from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 from pydantic import BaseModel, Field
@@ -42,12 +40,12 @@ class Competitor(BaseModel):
 
 class Ingestor:
     """Data ingestion handler."""
-    
+
     def __init__(self):
         self.events: list[MarketEvent] = []
         self.products: list[Product] = []
         self.competitors: list[Competitor] = []
-    
+
     def ingest_csv(self, path: str, data_type: str) -> int:
         """Ingest data from CSV file.
         
@@ -60,7 +58,7 @@ class Ingestor:
         """
         df = pd.read_csv(path)
         count = 0
-        
+
         if data_type == "events":
             for _, row in df.iterrows():
                 event = MarketEvent(
@@ -73,7 +71,7 @@ class Ingestor:
                 )
                 self.events.append(event)
                 count += 1
-        
+
         elif data_type == "products":
             for _, row in df.iterrows():
                 product = Product(
@@ -86,7 +84,7 @@ class Ingestor:
                 )
                 self.products.append(product)
                 count += 1
-        
+
         elif data_type == "competitors":
             for _, row in df.iterrows():
                 competitor = Competitor(
@@ -99,9 +97,9 @@ class Ingestor:
                 )
                 self.competitors.append(competitor)
                 count += 1
-        
+
         return count
-    
+
     def ingest_json(self, path: str, data_type: str) -> int:
         """Ingest data from JSON file.
         
@@ -114,7 +112,7 @@ class Ingestor:
         """
         with open(path, "r") as f:
             data = json.load(f)
-        
+
         count = 0
         if isinstance(data, list):
             for item in data:
@@ -123,9 +121,9 @@ class Ingestor:
         else:
             self._add_item(data, data_type)
             count = 1
-        
+
         return count
-    
+
     def ingest_jsonl(self, path: str, data_type: str) -> int:
         """Ingest data from JSONL file.
         
@@ -143,7 +141,7 @@ class Ingestor:
                 self._add_item(data, data_type)
                 count += 1
         return count
-    
+
     def _add_item(self, data: dict[str, Any], data_type: str) -> None:
         """Add item to appropriate collection."""
         if data_type == "events":
@@ -155,7 +153,7 @@ class Ingestor:
         elif data_type == "competitors":
             competitor = Competitor(**data)
             self.competitors.append(competitor)
-    
+
     def _parse_list(self, value: Any) -> list[str]:
         """Parse string or list into list of strings."""
         if isinstance(value, list):
@@ -170,19 +168,19 @@ class Ingestor:
             # Split by comma or semicolon
             return [v.strip() for v in value.replace(";", ",").split(",") if v.strip()]
         return []
-    
+
     def get_events(self) -> list[MarketEvent]:
         """Get all ingested events."""
         return self.events
-    
+
     def get_products(self) -> list[Product]:
         """Get all ingested products."""
         return self.products
-    
+
     def get_competitors(self) -> list[Competitor]:
         """Get all ingested competitors."""
         return self.competitors
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert all data to dictionary."""
         return {

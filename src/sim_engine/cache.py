@@ -11,7 +11,7 @@ import diskcache
 
 class Cache:
     """Disk-based cache for LLM responses and embeddings."""
-    
+
     def __init__(self, cache_dir: str = ".cache", ttl_hours: int = 24):
         """Initialize cache.
         
@@ -23,7 +23,7 @@ class Cache:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.cache = diskcache.Cache(str(self.cache_dir))
         self.ttl_seconds = ttl_hours * 3600
-    
+
     def _make_key(self, prefix: str, data: dict[str, Any]) -> str:
         """Create deterministic cache key from data.
         
@@ -38,7 +38,7 @@ class Cache:
         serialized = json.dumps(data, sort_keys=True)
         hash_input = f"{prefix}:{serialized}"
         return hashlib.sha256(hash_input.encode()).hexdigest()
-    
+
     def get(self, prefix: str, data: dict[str, Any]) -> Optional[Any]:
         """Get cached value.
         
@@ -51,7 +51,7 @@ class Cache:
         """
         key = self._make_key(prefix, data)
         return self.cache.get(key)
-    
+
     def set(self, prefix: str, data: dict[str, Any], value: Any) -> None:
         """Set cached value.
         
@@ -62,15 +62,15 @@ class Cache:
         """
         key = self._make_key(prefix, data)
         self.cache.set(key, value, expire=self.ttl_seconds)
-    
+
     def clear(self) -> None:
         """Clear all cached data."""
         self.cache.clear()
-    
+
     def size(self) -> int:
         """Get number of cached items."""
         return len(self.cache)
-    
+
     def cleanup(self) -> int:
         """Remove expired entries.
         

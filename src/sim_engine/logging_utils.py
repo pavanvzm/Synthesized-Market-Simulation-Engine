@@ -23,10 +23,10 @@ def setup_logging(
     """
     logger = logging.getLogger(name)
     logger.setLevel(getattr(logging, level.upper()))
-    
+
     # Clear existing handlers
     logger.handlers.clear()
-    
+
     # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.DEBUG)
@@ -36,7 +36,7 @@ def setup_logging(
     )
     console_handler.setFormatter(console_format)
     logger.addHandler(console_handler)
-    
+
     # File handler if specified
     if log_file:
         log_path = Path(log_file)
@@ -45,7 +45,7 @@ def setup_logging(
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(console_format)
         logger.addHandler(file_handler)
-    
+
     return logger
 
 
