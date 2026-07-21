@@ -1,0 +1,39 @@
+# Default configuration for Synthesized Market Simulation Engine
+
+# Resource profile: low, balanced, high
+resource_profile: low
+
+# LLM provider: mock, ollama, openai
+llm_provider: mock
+
+# Persona settings
+persona_count: 20
+consumer_ratio: 0.8  # 80% consumers, 20% competitors
+
+# Simulation settings
+sim_rounds: 3
+random_seed: 42
+
+# LLM settings
+llm_max_tokens: 96
+llm_temperature: 0.7
+
+# Memory settings
+memory_top_k: 2
+qdrant_mode: local
+qdrant_host: localhost
+qdrant_port: 6333
+collection_name: persona_memory
+
+# Processing settings
+batch_size: 4
+debate_enabled: false
+debate_entropy_threshold: 0.85
+
+# Caching
+cache_dir: .cache
+cache_ttl_hours: 24
+
+# Output settings
+output_dir: data/sim/runs
+log_level: INFO

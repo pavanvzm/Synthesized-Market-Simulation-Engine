@@ -1,0 +1,24 @@
+# Smoke test configuration - minimal settings for quick validation
+
+resource_profile: low
+llm_provider: mock
+
+persona_count: 5
+consumer_ratio: 0.8
+
+sim_rounds: 2
+random_seed: 42
+
+llm_max_tokens: 64
+llm_temperature: 0.7
+
+memory_top_k: 2
+qdrant_mode: local
+collection_name: persona_memory_smoke
+
+batch_size: 2
+debate_enabled: false
+
+cache_dir: .cache
+output_dir: data/sim/runs
+log_level: DEBUG
